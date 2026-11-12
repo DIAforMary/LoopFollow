@@ -413,7 +413,7 @@ extension MainViewController {
         return MinuteReadingDisplay(
             minuteBGText: bgDisplayText(newest.sgv),
             minuteBGColor: bgColor(for: newest.sgv),
-            minuteDirectionText: newest.direction.map { bgDirectionGraphicSafe($0) } ?? "",
+            minuteDirectionText: minuteArrow(forDirection: newest.direction),
             minuteDate: newest.date,
             minuteCountText: minuteCountText,
             fiveMinuteDeviationText: deviationText(fiveDeviation),
@@ -422,7 +422,7 @@ extension MainViewController {
             oneMinuteDeviationArrow: oneDeviationArrow,
             fiveMinuteBGText: bgDisplayText(latestFive.sgv),
             fiveMinuteBGColor: bgColor(for: latestFive.sgv),
-            fiveMinuteDirectionText: latestFive.direction.map { bgDirectionGraphicSafe($0) } ?? "-",
+            fiveMinuteDirectionText: minuteArrow(forDirection: latestFive.direction),
             fiveMinuteDeltaText: signedDisplayText(latestFive.sgv - priorFive.sgv),
             fiveMinuteDate: latestFive.date
         )
@@ -434,17 +434,37 @@ extension MainViewController {
     }
 
     /// Arrow for a change over a time span, with Nightscout's trend thresholds
-    /// per minute (mg/dL/min): > 3 ⇈, > 2 ↑, > 1 ↗, −1 … 1 →, < −1 ↘, < −2 ↓, < −3 ⇊.
+    /// per minute (mg/dL/min): > 3 ↑↑, > 2 ↑, > 1 ↗, −1 … 1 →, < −1 ↘, < −2 ↓, < −3 ↓↓.
     private func deviationArrow(_ change: Int, minutes: Double) -> String {
         let rate = Double(change) / max(minutes, 0.5)
         switch rate {
-        case 3...: return bgDirectionGraphic("DoubleUp")
-        case 2 ..< 3: return bgDirectionGraphic("SingleUp")
-        case 1 ..< 2: return bgDirectionGraphic("FortyFiveUp")
-        case -1 ..< 1: return bgDirectionGraphic("Flat")
-        case -2 ..< -1: return bgDirectionGraphic("FortyFiveDown")
-        case -3 ..< -2: return bgDirectionGraphic("SingleDown")
-        default: return bgDirectionGraphic("DoubleDown")
+        case 3...: return minuteArrow(forDirection: "DoubleUp")
+        case 2 ..< 3: return minuteArrow(forDirection: "SingleUp")
+        case 1 ..< 2: return minuteArrow(forDirection: "FortyFiveUp")
+        case -1 ..< 1: return minuteArrow(forDirection: "Flat")
+        case -2 ..< -1: return minuteArrow(forDirection: "FortyFiveDown")
+        case -3 ..< -2: return minuteArrow(forDirection: "SingleDown")
+        default: return minuteArrow(forDirection: "DoubleDown")
+        }
+    }
+
+    /// Arrow glyphs for the minute display. Same glyphs as LoopFollow's
+    /// `bgDirectionGraphic`, but both diagonal arrows carry U+FE0E so iOS always
+    /// draws them as text (never as emoji), triple arrows are included, and
+    /// undetermined/unknown trends give "" (no "-" next to the big number,
+    /// where it could be read as a minus sign).
+    private func minuteArrow(forDirection direction: String?) -> String {
+        switch direction ?? "" {
+        case "TripleUp": return "↑↑↑"
+        case "DoubleUp": return "↑↑"
+        case "SingleUp": return "↑"
+        case "FortyFiveUp": return "\u{2197}\u{FE0E}"
+        case "Flat": return "→"
+        case "FortyFiveDown": return "\u{2198}\u{FE0E}"
+        case "SingleDown": return "↓"
+        case "DoubleDown": return "↓↓"
+        case "TripleDown": return "↓↓↓"
+        default: return ""
         }
     }
 
@@ -469,14 +489,5 @@ extension MainViewController {
         if Double(sgv) >= thresholds.high { return .yellow }
         if Double(sgv) <= thresholds.low { return .red }
         return .green
-    }
-
-    /// `bgDirectionGraphic` without crashing on unknown direction strings.
-    private func bgDirectionGraphicSafe(_ value: String) -> String {
-        let known: Set<String> = [
-            "Flat", "DoubleUp", "SingleUp", "FortyFiveUp", "FortyFiveDown", "SingleDown", "DoubleDown",
-            "None", "NONE", "NOT COMPUTABLE", "RATE OUT OF RANGE", "",
-        ]
-        return known.contains(value) ? bgDirectionGraphic(value) : "-"
     }
 }

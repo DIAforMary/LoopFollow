@@ -20,9 +20,14 @@ main screen) shows:
 
 Same style as the DIAforMary/Trio glucose bubble "Minute value with 5-min footnote".
 
-- The arrow next to the big value is the reading's own trend arrow (Trio/LibreLoop).
+- The arrow next to the big value is the reading's own trend arrow (Trio/LibreLoop:
+  ↑ rising quickly, ↗ rising, → stable, ↘ falling, ↓ falling quickly). If the sensor
+  could not determine a trend, no arrow is shown (instead of a "-" that could be read as
+  a minus sign).
 - The arrows after the brackets show how fast that change was, with Nightscout's trend
-  thresholds per minute: > 3 mg/dL/min ⇈, > 2 ↑, > 1 ↗, −1 … 1 →, < −1 ↘, < −2 ↓, < −3 ⇊.
+  thresholds per minute: > 3 mg/dL/min ↑↑, > 2 ↑, > 1 ↗, −1 … 1 →, < −1 ↘, < −2 ↓, < −3 ↓↓.
+- All arrows use LoopFollow's glyphs; the diagonal arrows are forced to text style so iOS
+  never draws them as coloured emoji.
 - **#1 … #4** = minute readings after a 5-minute reading, **#5** = the 5-minute reading
   itself. The bracket shows the change from the previous reading, `(--)` if that one is
   not 30 s … 3 min older.
