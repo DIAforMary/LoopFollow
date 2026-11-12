@@ -389,15 +389,9 @@ extension MainViewController {
 
         // Upper part: newest reading and which reading after the 5-minute one.
         let minutesAfter = max(0, Int(((newest.date - latestFive.date) / 60).rounded()))
-        let minuteCountText: String
-        if minutesAfter == 0 {
-            minuteCountText = "5-min reading"
-        } else {
-            let formatter = NumberFormatter()
-            formatter.numberStyle = .ordinal
-            let ordinal = formatter.string(from: NSNumber(value: minutesAfter)) ?? "\(minutesAfter)."
-            minuteCountText = "\(ordinal) reading"
-        }
+        // "#1" … "#4" for the minute readings after a 5-minute reading,
+        // "#5" for the 5-minute reading itself (same as the Trio bubble).
+        let minuteCountText = "#\(minutesAfter == 0 ? 5 : minutesAfter)"
 
         // 5-min dev: newest reading minus the last 5-minute reading.
         let fiveDeviation = newest.sgv - latestFive.sgv

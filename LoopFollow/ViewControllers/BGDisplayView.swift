@@ -115,11 +115,14 @@ struct BGDisplayView: View {
 
     // MARK: - Fork feature (DIAforMary/LoopFollow, branch libre-1min-display)
 
-    /// Upper part: newest (minute) reading big with its arrow, which reading
-    /// after the 5-minute one it is, seconds until the next minute reading,
-    /// "5-min dev:" and "1-min dev:" with arrows. A thin line, then the lower
-    /// part: last 5-minute reading with arrow, delta and countdown to the next
-    /// 5-minute reading.
+    /// Same style as the DIAforMary/Trio bubble "Minute value with 5-min footnote":
+    ///
+    ///        118  ↗           ← newest (minute) reading with its trend arrow
+    ///      #3 (+2) →          ← position in the 5-min cycle, change from the previous reading + arrow
+    ///     next in 23 s        ← countdown to the next minute reading
+    ///   ────────────────
+    ///   5-min 112 (+6) ↗      ← last 5-min value, total change since it + arrow
+    ///   next 5-min in 2:13    ← countdown to the next 5-min reading
     @ViewBuilder private func minuteReadingHeader(_ minute: MinuteReadingDisplay, isStale: Bool) -> some View {
         HStack(alignment: .center, spacing: 8) {
             Text(minute.minuteBGText)
@@ -139,12 +142,18 @@ struct BGDisplayView: View {
         .lineLimit(1)
         .minimumScaleFactor(0.5)
 
-        // Which reading (line 1) and countdown to the next minute reading
-        // (line 2, refreshed every second), always on two separate lines.
-        Text(minute.minuteCountText)
-            .font(.system(size: 17, weight: .semibold))
-            .lineLimit(1)
+        // "#3 (+2) →"
+        changeRow(
+            prefix: minute.minuteCountText,
+            prefixColor: .primary,
+            value: nil,
+            valueColor: .primary,
+            change: minute.oneMinuteDeviationText ?? "--",
+            arrow: minute.oneMinuteDeviationArrow ?? "",
+            size: 24
+        )
 
+        // Countdown to the next minute reading, refreshed every second.
         TimelineView(.periodic(from: .now, by: 1)) { context in
             let remaining = Int((minute.minuteDate + 60 - context.date.timeIntervalSince1970).rounded(.up))
             Text(remaining > 0 ? "next in \(remaining) s" : "next due")
@@ -154,16 +163,6 @@ struct BGDisplayView: View {
                 .lineLimit(1)
         }
 
-        VStack(spacing: 2) {
-            deviationRow(label: "5-min dev:", value: minute.fiveMinuteDeviationText, arrow: minute.fiveMinuteDeviationArrow)
-            deviationRow(
-                label: "1-min dev:",
-                value: minute.oneMinuteDeviationText ?? "--",
-                arrow: minute.oneMinuteDeviationArrow ?? ""
-            )
-        }
-        .padding(.top, 4)
-
         // Discreet separation line.
         Rectangle()
             .fill(Color.secondary.opacity(0.35))
@@ -171,21 +170,16 @@ struct BGDisplayView: View {
             .padding(.horizontal, 24)
             .padding(.vertical, 6)
 
-        // Lower part: last 5-minute reading and countdown to the next one.
-        HStack(alignment: .firstTextBaseline, spacing: 6) {
-            Text("5-min:")
-                .font(.system(size: 15))
-                .foregroundColor(.secondary)
-            Text(minute.fiveMinuteBGText)
-                .font(.system(size: 24, weight: .bold))
-                .foregroundColor(minute.fiveMinuteBGColor)
-            Text(minute.fiveMinuteDirectionText)
-                .font(.system(size: 20, weight: .bold))
-            Text(minute.fiveMinuteDeltaText)
-                .font(.system(size: 17))
-        }
-        .lineLimit(1)
-        .minimumScaleFactor(0.6)
+        // "5-min 112 (+6) ↗": last 5-minute value, total change since it.
+        changeRow(
+            prefix: "5-min",
+            prefixColor: .secondary,
+            value: minute.fiveMinuteBGText,
+            valueColor: minute.fiveMinuteBGColor,
+            change: minute.fiveMinuteDeviationText,
+            arrow: minute.fiveMinuteDeviationArrow,
+            size: 20
+        )
 
         TimelineView(.periodic(from: .now, by: 1)) { context in
             let remaining = Int((minute.fiveMinuteDate + 300 - context.date.timeIntervalSince1970).rounded(.up))
@@ -197,17 +191,32 @@ struct BGDisplayView: View {
         .padding(.bottom, 4)
     }
 
-    /// One line "5-min dev:  +6  ↗".
-    private func deviationRow(label: String, value: String, arrow: String) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text(label)
-                .font(.system(size: 17))
-                .foregroundColor(.secondary)
-            Text(value)
-                .font(.system(size: 22, weight: .semibold))
+    /// One line like "#3 (+2) →" or "5-min 112 (+6) ↗".
+    private func changeRow(
+        prefix: String,
+        prefixColor: Color,
+        value: String?,
+        valueColor: Color,
+        change: String,
+        arrow: String,
+        size: CGFloat
+    ) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Text(prefix)
+                .font(.system(size: value == nil ? size : size * 0.75, weight: value == nil ? .bold : .regular))
+                .foregroundColor(prefixColor)
+            if let value {
+                Text(value)
+                    .font(.system(size: size * 1.2, weight: .bold))
+                    .foregroundColor(valueColor)
+            }
+            Text("(\(change))")
+                .font(.system(size: size, weight: .semibold))
                 .monospacedDigit()
-            Text(arrow)
-                .font(.system(size: 22, weight: .bold))
+            if !arrow.isEmpty {
+                Text(arrow)
+                    .font(.system(size: size, weight: .bold))
+            }
         }
         .lineLimit(1)
         .minimumScaleFactor(0.6)

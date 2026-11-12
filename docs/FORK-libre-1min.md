@@ -11,23 +11,23 @@ main screen) shows:
 
 ```
        118  ↗              ← newest (minute) reading, big, with its trend arrow
-     3rd reading           ← which reading after the 5-min reading
-     next in 23 s          ← seconds to the next minute reading
-  5-min dev:  +6  ↗        ← newest reading − last 5-minute reading, arrow for that change
-  1-min dev:  +2  →        ← newest reading − the reading before it (~1 min), arrow for that change
+     #3 (+2) →             ← position in the 5-min cycle, change from the previous reading + arrow
+    next in 23 s           ← seconds to the next minute reading
   ─────────────────        ← thin separation line
-  5-min: 112 ↗ +4          ← last 5-minute reading (Trio's own entry), its arrow and 5-min delta
+  5-min 112 (+6) ↗         ← last 5-minute reading (Trio's own entry), total change since it + arrow
   next 5-min in 2:13       ← countdown to the next 5-minute reading
 ```
 
-- The big value and the trend arrows next to the big value and the 5-minute reading come
-  from the readings themselves (Trio/LibreLoop trend).
-- The arrows next to the deviations show how fast that change was, with Nightscout's
-  trend thresholds per minute: > 3 mg/dL/min ⇈, > 2 ↑, > 1 ↗, −1 … 1 →, < −1 ↘,
-  < −2 ↓, < −3 ⇊.
-- "1st/2nd/3rd/4th reading" counts the minutes since the last 5-minute reading;
-  "5-min reading" when the newest reading is the 5-minute reading itself. "1-min dev" shows
-  `--` if the previous reading is not 30 s … 3 min older.
+Same style as the DIAforMary/Trio glucose bubble "Minute value with 5-min footnote".
+
+- The arrow next to the big value is the reading's own trend arrow (Trio/LibreLoop).
+- The arrows after the brackets show how fast that change was, with Nightscout's trend
+  thresholds per minute: > 3 mg/dL/min ⇈, > 2 ↑, > 1 ↗, −1 … 1 →, < −1 ↘, < −2 ↓, < −3 ⇊.
+- **#1 … #4** = minute readings after a 5-minute reading, **#5** = the 5-minute reading
+  itself. The bracket shows the change from the previous reading, `(--)` if that one is
+  not 30 s … 3 min older.
+- **5-min 112 (+6)**: last 5-minute value and the total change from it to the newest
+  reading.
 - Countdowns: next minute reading = newest reading + 60 s; next 5-minute reading = last
   5-minute reading + 5 min. "next due" when the time has passed.
 - While fresh minute readings arrive, LoopFollow fetches new data about every minute

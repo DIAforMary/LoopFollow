@@ -21,7 +21,7 @@ struct MinuteReadingDisplay: Equatable {
     let minuteDirectionText: String
     /// Time of the newest reading (seconds since 1970); next one expected 60 s later.
     let minuteDate: TimeInterval
-    /// Which reading after the 5-minute reading, e.g. "3rd reading".
+    /// Position in the 5-minute cycle: "#1" … "#4", "#5" = the 5-minute reading.
     let minuteCountText: String
     /// Newest reading minus the last 5-minute reading, with arrow.
     let fiveMinuteDeviationText: String
