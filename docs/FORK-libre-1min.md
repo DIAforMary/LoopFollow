@@ -11,7 +11,8 @@ main screen) shows:
 
 ```
        118  ↗              ← newest (minute) reading, big, with its trend arrow
-  3rd reading · next in 23 s   ← which reading after the 5-min reading; seconds to the next minute reading
+     3rd reading           ← which reading after the 5-min reading
+     next in 23 s          ← seconds to the next minute reading
   5-min dev:  +6  ↗        ← newest reading − last 5-minute reading, arrow for that change
   1-min dev:  +2  →        ← newest reading − the reading before it (~1 min), arrow for that change
   ─────────────────        ← thin separation line

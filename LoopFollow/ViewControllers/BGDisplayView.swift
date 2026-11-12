@@ -139,12 +139,19 @@ struct BGDisplayView: View {
         .lineLimit(1)
         .minimumScaleFactor(0.5)
 
-        // Which reading + countdown to the next minute reading, every second.
+        // Which reading (line 1) and countdown to the next minute reading
+        // (line 2, refreshed every second), always on two separate lines.
+        Text(minute.minuteCountText)
+            .font(.system(size: 17, weight: .semibold))
+            .lineLimit(1)
+
         TimelineView(.periodic(from: .now, by: 1)) { context in
             let remaining = Int((minute.minuteDate + 60 - context.date.timeIntervalSince1970).rounded(.up))
-            Text("\(minute.minuteCountText) · " + (remaining > 0 ? "next in \(remaining) s" : "next due"))
-                .font(.system(size: 17, weight: .semibold))
+            Text(remaining > 0 ? "next in \(remaining) s" : "next due")
+                .font(.system(size: 17))
+                .foregroundColor(.secondary)
                 .monospacedDigit()
+                .lineLimit(1)
         }
 
         VStack(spacing: 2) {
