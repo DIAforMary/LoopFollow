@@ -78,3 +78,15 @@ faster fetch interval (about every minute) while minute readings arrive.
   `main` into the branch, then builds and uploads to TestFlight.
 - Same App ID as your normal LoopFollow; switch between builds in TestFlight
   (turn off Automatic Updates while testing).
+
+## Change history
+
+| Date | Commit | Change |
+|---|---|---|
+| 12 Nov 2026 | `aa6961d` | First version: 5-minute value big, minute reading below; branch builds sync from upstream `main` |
+| 12 Nov 2026 | `b80650e` | Minute reading big, deviations with arrows, countdowns, fetch about every minute |
+| 12 Nov 2026 | `addcc3c` | "Xth reading" and "next in X s" on two separate lines |
+| 12 Nov 2026 | `4be6c07` | Display in Trio bubble style (`#3 (+2) →`, `5-min 112 (+6) ↗`), split below the thin line kept, arrows kept |
+| 12 Nov 2026 | `3fc7e5c` | Consistent arrows: all trend directions incl. TripleUp/TripleDown, diagonals forced to text style, no "-" when the trend is unknown |
+
+All commits are authored by Claude (AI) on behalf of DIAforMary.
