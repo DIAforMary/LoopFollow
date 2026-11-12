@@ -2,6 +2,7 @@
 // BGData.swift
 
 import Foundation
+import SwiftUI
 
 extension MainViewController {
     /// Number of days of BG history to request from the source. One extra day is
@@ -226,7 +227,12 @@ extension MainViewController {
                     continue
                 }
 
-                let reading = ShareGlucoseData(sgv: sgvValue, date: readingTimestamp, direction: data[data.count - 1 - i].direction)
+                let reading = ShareGlucoseData(
+                    sgv: sgvValue,
+                    date: readingTimestamp,
+                    direction: data[data.count - 1 - i].direction,
+                    device: data[data.count - 1 - i].device
+                )
                 bgData.append(reading)
             }
         }
@@ -320,6 +326,10 @@ extension MainViewController {
             Storage.shared.lastDeltaMgdl.value = Double(deltaBG)
             Storage.shared.lastTrendCode.value = entries[latestEntryIndex].direction
 
+            // Fork feature (libre-1min-display): 5-minute value + minute
+            // reading for the main display, only while minute readings arrive.
+            Observable.shared.minuteReadingDisplay.value = self.makeMinuteReadingDisplay(entries: entries)
+
             // Mark BG data as loaded for initial loading state
             self.markDataLoaded("bg")
 
@@ -341,5 +351,96 @@ extension MainViewController {
             }
             Storage.shared.lastBGChecked.value = Date()
         }
+    }
+
+    // MARK: - Fork feature (DIAforMary/LoopFollow, branch libre-1min-display)
+
+    /// Builds the main-display values when Libre 3 minute readings from the
+    /// DIAforMary/Trio test branch (`device: "Trio-LibreLoop-1min"`) are in
+    /// the data. Returns `nil`, i.e. the original LoopFollow display, when
+    /// - no minute reading is younger than 15 minutes,
+    /// - there are fewer than two 5-minute readings, or
+    /// - the last 5-minute reading is older than 15 minutes.
+    /// Display only: alarms, badge, Live Activity, contact image and the
+    /// graph keep using the data exactly as before.
+    func makeMinuteReadingDisplay(entries: [ShareGlucoseData]) -> MinuteReadingDisplay? {
+        let now = dateTimeUtils.getNowTimeIntervalUTC()
+        let freshness: TimeInterval = 15 * 60
+
+        guard let newest = entries.last,
+              let newestMinute = entries.last(where: { $0.isMinuteReading }),
+              now - newestMinute.date < freshness
+        else { return nil }
+
+        let fiveMinute = entries.filter { !$0.isMinuteReading }
+        guard fiveMinute.count >= 2 else { return nil }
+        let latestFive = fiveMinute[fiveMinute.count - 1]
+        let priorFive = fiveMinute[fiveMinute.count - 2]
+        guard now - latestFive.date < freshness else { return nil }
+
+        // Big number: last 5-minute reading with its 5-minute delta.
+        let fiveBGText = bgDisplayText(latestFive.sgv)
+        let fiveDelta = latestFive.sgv - priorFive.sgv
+        let fiveDeltaText = signedDisplayText(fiveDelta)
+        let directionText = latestFive.direction.map { bgDirectionGraphicSafe($0) } ?? "-"
+
+        // Below: newest reading of all (minute or 5-minute) and its deviation.
+        let deviation = newest.sgv - latestFive.sgv
+        let deviationText = deviation == 0 ? "±0" : signedDisplayText(deviation)
+        let minuteValueText = "\(bgDisplayText(newest.sgv)) (\(deviationText))"
+
+        let minutesAfter = Int(((newest.date - latestFive.date) / 60).rounded())
+        let minuteCountText: String
+        if minutesAfter <= 0 {
+            minuteCountText = "5-min reading"
+        } else {
+            let formatter = NumberFormatter()
+            formatter.numberStyle = .ordinal
+            let ordinal = formatter.string(from: NSNumber(value: minutesAfter)) ?? "\(minutesAfter)."
+            minuteCountText = "\(ordinal) minute"
+        }
+
+        return MinuteReadingDisplay(
+            fiveMinuteBGText: fiveBGText,
+            fiveMinuteBGColor: bgColor(for: latestFive.sgv),
+            fiveMinuteDirectionText: directionText,
+            fiveMinuteDeltaText: fiveDeltaText,
+            fiveMinuteDate: latestFive.date,
+            minuteValueText: minuteValueText,
+            minuteValueColor: bgColor(for: newest.sgv),
+            minuteCountText: minuteCountText
+        )
+    }
+
+    /// Same text rules as the original big number (LOW / HIGH / display units).
+    private func bgDisplayText(_ sgv: Int) -> String {
+        if sgv <= globalVariables.minDisplayGlucose { return "LOW" }
+        if sgv >= globalVariables.maxDisplayGlucose { return "HIGH" }
+        return Localizer.toDisplayUnits(String(sgv))
+    }
+
+    /// Delta text with sign, in display units, like the original delta.
+    private func signedDisplayText(_ value: Int) -> String {
+        value < 0
+            ? Localizer.toDisplayUnits(String(value))
+            : "+" + Localizer.toDisplayUnits(String(value))
+    }
+
+    /// Same color rules as `updateBGTextAppearance()`.
+    private func bgColor(for sgv: Int) -> Color {
+        guard Storage.shared.colorBGText.value else { return .primary }
+        let thresholds = UnitSettingsStore.shared.effectiveThresholds()
+        if Double(sgv) >= thresholds.high { return .yellow }
+        if Double(sgv) <= thresholds.low { return .red }
+        return .green
+    }
+
+    /// `bgDirectionGraphic` without crashing on unknown direction strings.
+    private func bgDirectionGraphicSafe(_ value: String) -> String {
+        let known: Set<String> = [
+            "Flat", "DoubleUp", "SingleUp", "FortyFiveUp", "FortyFiveDown", "SingleDown", "DoubleDown",
+            "None", "NONE", "NOT COMPUTABLE", "RATE OUT OF RANGE", "",
+        ]
+        return known.contains(value) ? bgDirectionGraphic(value) : "-"
     }
 }

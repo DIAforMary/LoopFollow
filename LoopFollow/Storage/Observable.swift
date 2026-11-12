@@ -9,8 +9,30 @@ import SwiftUI
  Observable in memory storage
  */
 
+/// Fork feature (DIAforMary/LoopFollow, branch libre-1min-display): what the
+/// main BG display shows while Libre 3 minute readings from the DIAforMary/Trio
+/// test branch arrive. `nil` = original LoopFollow display.
+struct MinuteReadingDisplay: Equatable {
+    /// Last 5-minute reading (Trio's own entry), big number.
+    let fiveMinuteBGText: String
+    let fiveMinuteBGColor: Color
+    /// Arrow and delta of the last 5-minute reading against the previous one.
+    let fiveMinuteDirectionText: String
+    let fiveMinuteDeltaText: String
+    /// Time of the last 5-minute reading (seconds since 1970), for "min ago".
+    let fiveMinuteDate: TimeInterval
+    /// Newest minute reading and its deviation from the 5-minute value, e.g. "118 (+6)".
+    let minuteValueText: String
+    let minuteValueColor: Color
+    /// Which minute after the 5-minute reading, e.g. "3rd minute".
+    let minuteCountText: String
+}
+
 class Observable {
     static let shared = Observable()
+
+    /// Fork feature (libre-1min-display), see `MinuteReadingDisplay`.
+    var minuteReadingDisplay = ObservableValue<MinuteReadingDisplay?>(default: nil)
 
     var tempTarget = ObservableValue<HKQuantity?>(default: nil)
     var override = ObservableValue<String?>(default: nil)

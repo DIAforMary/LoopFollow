@@ -10,6 +10,19 @@ public struct ShareGlucoseData: Decodable {
     var sgv: Int
     var date: TimeInterval
     var direction: String?
+    /// Nightscout `device` field (fork feature, DIAforMary/LoopFollow branch
+    /// libre-1min-display). `nil` for Dexcom Share and most uploaders.
+    var device: String?
+
+    /// `device` value of the Libre 3 minute readings uploaded by the
+    /// DIAforMary/Trio test branch. Trio's own 5-minute readings have no
+    /// `device` field.
+    static let minuteReadingDevice = "Trio-LibreLoop-1min"
+
+    /// `true` for a Libre 3 minute reading from the DIAforMary/Trio test branch.
+    var isMinuteReading: Bool {
+        device == Self.minuteReadingDevice
+    }
 
     enum CodingKeys: String, CodingKey {
         case sgv // Sensor Blood Glucose
@@ -17,6 +30,7 @@ public struct ShareGlucoseData: Decodable {
         case glucose // Other type of entry
         case date
         case direction
+        case device
     }
 
     // Decoder initializer for handling JSON data
@@ -36,12 +50,14 @@ public struct ShareGlucoseData: Decodable {
         // Decode the date and optional direction
         date = try container.decode(TimeInterval.self, forKey: .date)
         direction = try container.decodeIfPresent(String.self, forKey: .direction)
+        device = try? container.decodeIfPresent(String.self, forKey: .device)
     }
 
-    public init(sgv: Int, date: TimeInterval, direction: String?) {
+    public init(sgv: Int, date: TimeInterval, direction: String?, device: String? = nil) {
         self.sgv = sgv
         self.date = date
         self.direction = direction
+        self.device = device
     }
 }
 
