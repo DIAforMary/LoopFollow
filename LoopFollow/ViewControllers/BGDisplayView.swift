@@ -115,49 +115,94 @@ struct BGDisplayView: View {
 
     // MARK: - Fork feature (DIAforMary/LoopFollow, branch libre-1min-display)
 
-    /// Last 5-minute reading big (a bit smaller than the original 85 pt) with
-    /// its arrow, 5-minute delta and "min ago"; below it the newest minute
-    /// reading with its deviation from the 5-minute value and which minute
-    /// after the 5-minute reading it is.
+    /// Upper part: newest (minute) reading big with its arrow, which reading
+    /// after the 5-minute one it is, seconds until the next minute reading,
+    /// "5-min dev:" and "1-min dev:" with arrows. A thin line, then the lower
+    /// part: last 5-minute reading with arrow, delta and countdown to the next
+    /// 5-minute reading.
     @ViewBuilder private func minuteReadingHeader(_ minute: MinuteReadingDisplay, isStale: Bool) -> some View {
-        Text(minute.fiveMinuteBGText)
-            .font(.system(size: 70, weight: .black))
-            .foregroundColor(minute.fiveMinuteBGColor)
-            .strikethrough(
-                isStale,
-                pattern: .solid,
-                color: isStale ? .red : .clear
-            )
-            .frame(maxWidth: .infinity)
-            .lineLimit(1)
-            .minimumScaleFactor(0.5)
-
-        HStack {
-            Text(minute.fiveMinuteDirectionText)
-                .font(.system(size: 50, weight: .black))
-            Text(minute.fiveMinuteDeltaText)
-                .font(.system(size: 28))
+        HStack(alignment: .center, spacing: 8) {
+            Text(minute.minuteBGText)
+                .font(.system(size: 80, weight: .black))
+                .foregroundColor(minute.minuteBGColor)
+                .strikethrough(
+                    isStale,
+                    pattern: .solid,
+                    color: isStale ? .red : .clear
+                )
+            if !minute.minuteDirectionText.isEmpty {
+                Text(minute.minuteDirectionText)
+                    .font(.system(size: 44, weight: .black))
+            }
         }
+        .frame(maxWidth: .infinity)
         .lineLimit(1)
         .minimumScaleFactor(0.5)
 
-        // "min ago" of the 5-minute reading, refreshed every 15 s.
-        TimelineView(.periodic(from: .now, by: 15)) { context in
-            let minutes = max(0, Int((context.date.timeIntervalSince1970 - minute.fiveMinuteDate) / 60))
-            Text("\(minutes) min ago")
-                .font(.system(size: 17))
+        // Which reading + countdown to the next minute reading, every second.
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            let remaining = Int((minute.minuteDate + 60 - context.date.timeIntervalSince1970).rounded(.up))
+            Text("\(minute.minuteCountText) · " + (remaining > 0 ? "next in \(remaining) s" : "next due"))
+                .font(.system(size: 17, weight: .semibold))
+                .monospacedDigit()
         }
 
-        Text(minute.minuteValueText)
-            .font(.system(size: 30, weight: .bold))
-            .foregroundColor(minute.minuteValueColor)
-            .lineLimit(1)
-            .minimumScaleFactor(0.5)
-            .padding(.top, 4)
+        VStack(spacing: 2) {
+            deviationRow(label: "5-min dev:", value: minute.fiveMinuteDeviationText, arrow: minute.fiveMinuteDeviationArrow)
+            deviationRow(
+                label: "1-min dev:",
+                value: minute.oneMinuteDeviationText ?? "--",
+                arrow: minute.oneMinuteDeviationArrow ?? ""
+            )
+        }
+        .padding(.top, 4)
 
-        Text(minute.minuteCountText)
-            .font(.system(size: 17, weight: .semibold))
-            .foregroundColor(.secondary)
-            .lineLimit(1)
+        // Discreet separation line.
+        Rectangle()
+            .fill(Color.secondary.opacity(0.35))
+            .frame(height: 0.5)
+            .padding(.horizontal, 24)
+            .padding(.vertical, 6)
+
+        // Lower part: last 5-minute reading and countdown to the next one.
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Text("5-min:")
+                .font(.system(size: 15))
+                .foregroundColor(.secondary)
+            Text(minute.fiveMinuteBGText)
+                .font(.system(size: 24, weight: .bold))
+                .foregroundColor(minute.fiveMinuteBGColor)
+            Text(minute.fiveMinuteDirectionText)
+                .font(.system(size: 20, weight: .bold))
+            Text(minute.fiveMinuteDeltaText)
+                .font(.system(size: 17))
+        }
+        .lineLimit(1)
+        .minimumScaleFactor(0.6)
+
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            let remaining = Int((minute.fiveMinuteDate + 300 - context.date.timeIntervalSince1970).rounded(.up))
+            Text(remaining > 0 ? String(format: "next 5-min in %d:%02d", remaining / 60, remaining % 60) : "next 5-min due")
+                .font(.system(size: 14))
+                .foregroundColor(.secondary)
+                .monospacedDigit()
+        }
+        .padding(.bottom, 4)
+    }
+
+    /// One line "5-min dev:  +6  ↗".
+    private func deviationRow(label: String, value: String, arrow: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(label)
+                .font(.system(size: 17))
+                .foregroundColor(.secondary)
+            Text(value)
+                .font(.system(size: 22, weight: .semibold))
+                .monospacedDigit()
+            Text(arrow)
+                .font(.system(size: 22, weight: .bold))
+        }
+        .lineLimit(1)
+        .minimumScaleFactor(0.6)
     }
 }

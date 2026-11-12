@@ -192,6 +192,15 @@ extension MainViewController {
                 LogManager.shared.log(category: .nightscout,
                                       message: "Reading is close to 5 minutes old (\(secondsAgo) sec). Scheduling next fetch in 5 seconds.",
                                       isDebug: true)
+            } else if data[0].isMinuteReading, secondsAgo < 3 * 60 {
+                // Fork feature (libre-1min-display): Libre 3 minute readings from
+                // the DIAforMary/Trio test branch arrive every minute, so fetch
+                // again shortly after the next one is due.
+                delayToSchedule = max(10, 60 - secondsAgo + Double(Storage.shared.bgUpdateDelay.value))
+                LogManager.shared.log(category: .nightscout,
+                                      message: "Fresh minute reading. Scheduling next fetch in \(delayToSchedule) seconds.",
+                                      isDebug: true)
+                TaskScheduler.shared.rescheduleTask(id: .alarmCheck, to: Date().addingTimeInterval(3))
             } else {
                 delayToSchedule = 300 - secondsAgo + Double(Storage.shared.bgUpdateDelay.value)
                 LogManager.shared.log(category: .nightscout,
@@ -378,38 +387,71 @@ extension MainViewController {
         let priorFive = fiveMinute[fiveMinute.count - 2]
         guard now - latestFive.date < freshness else { return nil }
 
-        // Big number: last 5-minute reading with its 5-minute delta.
-        let fiveBGText = bgDisplayText(latestFive.sgv)
-        let fiveDelta = latestFive.sgv - priorFive.sgv
-        let fiveDeltaText = signedDisplayText(fiveDelta)
-        let directionText = latestFive.direction.map { bgDirectionGraphicSafe($0) } ?? "-"
-
-        // Below: newest reading of all (minute or 5-minute) and its deviation.
-        let deviation = newest.sgv - latestFive.sgv
-        let deviationText = deviation == 0 ? "±0" : signedDisplayText(deviation)
-        let minuteValueText = "\(bgDisplayText(newest.sgv)) (\(deviationText))"
-
-        let minutesAfter = Int(((newest.date - latestFive.date) / 60).rounded())
+        // Upper part: newest reading and which reading after the 5-minute one.
+        let minutesAfter = max(0, Int(((newest.date - latestFive.date) / 60).rounded()))
         let minuteCountText: String
-        if minutesAfter <= 0 {
+        if minutesAfter == 0 {
             minuteCountText = "5-min reading"
         } else {
             let formatter = NumberFormatter()
             formatter.numberStyle = .ordinal
             let ordinal = formatter.string(from: NSNumber(value: minutesAfter)) ?? "\(minutesAfter)."
-            minuteCountText = "\(ordinal) minute"
+            minuteCountText = "\(ordinal) reading"
+        }
+
+        // 5-min dev: newest reading minus the last 5-minute reading.
+        let fiveDeviation = newest.sgv - latestFive.sgv
+        let fiveDeviationMinutes = max(1, (newest.date - latestFive.date) / 60)
+
+        // 1-min dev: newest reading minus the reading before it (30 s ... 3 min earlier).
+        var oneDeviationText: String?
+        var oneDeviationArrow: String?
+        if entries.count >= 2 {
+            let previous = entries[entries.count - 2]
+            let gap = newest.date - previous.date
+            if gap >= 30, gap <= 180 {
+                let deviation = newest.sgv - previous.sgv
+                oneDeviationText = deviationText(deviation)
+                oneDeviationArrow = deviationArrow(deviation, minutes: gap / 60)
+            }
         }
 
         return MinuteReadingDisplay(
-            fiveMinuteBGText: fiveBGText,
+            minuteBGText: bgDisplayText(newest.sgv),
+            minuteBGColor: bgColor(for: newest.sgv),
+            minuteDirectionText: newest.direction.map { bgDirectionGraphicSafe($0) } ?? "",
+            minuteDate: newest.date,
+            minuteCountText: minuteCountText,
+            fiveMinuteDeviationText: deviationText(fiveDeviation),
+            fiveMinuteDeviationArrow: deviationArrow(fiveDeviation, minutes: fiveDeviationMinutes),
+            oneMinuteDeviationText: oneDeviationText,
+            oneMinuteDeviationArrow: oneDeviationArrow,
+            fiveMinuteBGText: bgDisplayText(latestFive.sgv),
             fiveMinuteBGColor: bgColor(for: latestFive.sgv),
-            fiveMinuteDirectionText: directionText,
-            fiveMinuteDeltaText: fiveDeltaText,
-            fiveMinuteDate: latestFive.date,
-            minuteValueText: minuteValueText,
-            minuteValueColor: bgColor(for: newest.sgv),
-            minuteCountText: minuteCountText
+            fiveMinuteDirectionText: latestFive.direction.map { bgDirectionGraphicSafe($0) } ?? "-",
+            fiveMinuteDeltaText: signedDisplayText(latestFive.sgv - priorFive.sgv),
+            fiveMinuteDate: latestFive.date
         )
+    }
+
+    /// Deviation with sign in display units; "±0" when equal.
+    private func deviationText(_ value: Int) -> String {
+        value == 0 ? "±0" : signedDisplayText(value)
+    }
+
+    /// Arrow for a change over a time span, with Nightscout's trend thresholds
+    /// per minute (mg/dL/min): > 3 ⇈, > 2 ↑, > 1 ↗, −1 … 1 →, < −1 ↘, < −2 ↓, < −3 ⇊.
+    private func deviationArrow(_ change: Int, minutes: Double) -> String {
+        let rate = Double(change) / max(minutes, 0.5)
+        switch rate {
+        case 3...: return bgDirectionGraphic("DoubleUp")
+        case 2 ..< 3: return bgDirectionGraphic("SingleUp")
+        case 1 ..< 2: return bgDirectionGraphic("FortyFiveUp")
+        case -1 ..< 1: return bgDirectionGraphic("Flat")
+        case -2 ..< -1: return bgDirectionGraphic("FortyFiveDown")
+        case -3 ..< -2: return bgDirectionGraphic("SingleDown")
+        default: return bgDirectionGraphic("DoubleDown")
+        }
     }
 
     /// Same text rules as the original big number (LOW / HIGH / display units).
